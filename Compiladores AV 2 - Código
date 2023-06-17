@@ -1,0 +1,262 @@
+// Arllon DeFraga Dutra - 01358091
+
+import Foundation
+
+// Implementação do analisador léxico
+class Scanner {
+    let input: String
+    var position: Int
+
+    init(input: String) {
+        self.input = input
+        self.position = 0
+    }
+
+    func nextToken() throws -> Symbol {
+        // Ignora espaços em branco
+        while position < input.count && input[input.index(input.startIndex, offsetBy: position)].isWhitespace {
+            position += 1
+        }
+
+        // Verifica se chegou ao final do texto
+        if position >= input.count {
+            return Symbol(type: .EOF)
+        }
+
+        // Reconhece tokens de números
+        if input[input.index(input.startIndex, offsetBy: position)].isNumber {
+            let start = position
+            while position < input.count && input[input.index(input.startIndex, offsetBy: position)].isNumber {
+                position += 1
+            }
+            let lexeme = input[start..<position]
+            return Symbol(type: .NUMBER, value: String(lexeme))
+        }
+
+        // Reconhece tokens de operadores e parênteses
+        let ch = input[input.index(input.startIndex, offsetBy: position)]
+        position += 1
+        switch ch {
+        case "+":
+            return Symbol(type: .PLUS)
+        case "-":
+            return Symbol(type: .MINUS)
+        case "*":
+            return Symbol(type: .TIMES)
+        case "/":
+            return Symbol(type: .DIVIDE)
+        case "(":
+            return Symbol(type: .LPAREN)
+        case ")":
+            return Symbol(type: .RPAREN)
+        default:
+            throw NSError(domain: "Scanner Error", code: 0, userInfo: [NSLocalizedDescriptionKey: "Token inválido: \(ch)"])
+        }
+    }
+}
+
+// Implementação do analisador sintático
+class MyParser {
+    func main() {
+        do {
+            let glc = Grammar(
+                nonTerminals: ["S", "A"],
+                terminals: ["a", "b"],
+                startSymbol: "S",
+                productions: [
+                    Production(left: "S", right: ["a", "A"]),
+                    Production(left: "A", right: ["S"]),
+                    Production(left: "A", right: ["b"])
+                ]
+            )
+            let fng = transformToFNG(glc)
+
+            // Imprime a Gramática na Forma Normal de Greibach (FNG)
+            print("Gramática na Forma Normal de Greibach (FNG):")
+            for production in fng.productions {
+                print("\(production.left) -> \(production.right.joined(separator: " "))")
+            }
+        } catch {
+            print(error.localizedDescription)
+        }
+    }
+
+    func transformToFNG(_ glc: Grammar) -> Grammar {
+        var fng = Grammar(
+            nonTerminals: glc.nonTerminals,
+            terminals: glc.terminals,
+            startSymbol: glc.startSymbol
+        )
+
+        eliminateEpsilonProductions(glc, &fng)
+        eliminateUnitProductions(&fng)
+        eliminateNonTerminalTransitions(&fng)
+        convertToGreibachNormalForm(&fng)
+
+        return fng
+    }
+
+    // Etapa 1: Eliminação das produções vazias
+    private func eliminateEpsilonProductions(_ glc: Grammar, _ fng: inout Grammar) {
+        var nullableNonTerminals = Set<String>()
+        var oldNullableCount: Int
+        var newNullableCount: Int
+
+        // Passo 1: Encontra os não-terminais que são anuláveis
+        repeat {
+            oldNullableCount = nullableNonTerminals.count
+            for production in glc.productions where production.right.contains(Grammar.EPSILON) {
+                nullableNonTerminals.insert(production.left)
+            }
+
+            for production in glc.productions where production.right.allSatisfy({ nullableNonTerminals.contains($0) }) {
+                nullableNonTerminals.insert(production.left)
+            }
+
+            newNullableCount = nullableNonTerminals.count
+        } while oldNullableCount != newNullableCount
+
+        // Passo 2: Elimina as produções vazias
+        for production in glc.productions where production.right.contains(Grammar.EPSILON) {
+            let nonNullableProductions = glc.productions.filter { $0 != production }
+            var newProductions = Set([production.left])
+
+            for nullableNonTerminal in nullableNonTerminals {
+                for nonNullableProduction in nonNullableProductions {
+                    let right = nonNullableProduction.right.map {
+                        $0 == nullableNonTerminal ? Grammar.EPSILON : $0
+                    }
+                    newProductions.insert([production.left] + right)
+                }
+            }
+
+            for newProduction in newProductions {
+                fng.productions.append(Production(left: newProduction[0], right: Array(newProduction[1...])))
+            }
+        }
+    }
+
+    // Etapa 2: Eliminação das produções unitárias
+    private func eliminateUnitProductions(_ g: inout Grammar) {
+        let unitProductions = g.productions.filter { $0.right.count == 1 && g.nonTerminals.contains($0.right[0]) }
+
+        // Passo 3: Elimina as produções unitárias
+        for unitProduction in unitProductions {
+            let nonUnitProductions = g.productions.filter { $0 != unitProduction }
+            var visited = Set<String>()
+            var queue = [unitProduction.right[0]]
+
+            while !queue.isEmpty {
+                let current = queue.removeFirst()
+                if !visited.contains(current) {
+                    visited.insert(current)
+                    for nonUnitProduction in nonUnitProductions where nonUnitProduction.left == current {
+                        queue += nonUnitProduction.right
+                        g.productions.append(Production(left: unitProduction.left, right: nonUnitProduction.right))
+                    }
+                }
+            }
+        }
+
+        g.productions.removeAll(where: { unitProductions.contains($0) })
+    }
+
+    // Etapa 3: Eliminação das transições entre não-terminais
+    private func eliminateNonTerminalTransitions(_ g: inout Grammar) {
+        let nonTerminalTransitions = g.productions.filter { $0.right.allSatisfy { g.nonTerminals.contains($0) } }
+
+        // Passo 4: Elimina as transições entre não-terminais
+        for nonTerminalTransition in nonTerminalTransitions {
+            var visited = Set<String>()
+            var queue = nonTerminalTransition.right
+
+            while !queue.isEmpty {
+                let current = queue.removeFirst()
+                if !visited.contains(current) {
+                    visited.insert(current)
+                    for nonTerminalProduction in g.productions where nonTerminalProduction.left == current {
+                        queue += nonTerminalProduction.right
+                        g.productions.append(Production(left: nonTerminalTransition.left, right: nonTerminalProduction.right))
+                    }
+                }
+            }
+        }
+
+        g.productions.removeAll(where: { nonTerminalTransitions.contains($0) })
+    }
+
+    // Etapa 4: Conversão para a forma normal de Greibach
+    private func convertToGreibachNormalForm(_ g: inout Grammar) {
+        var newNonTerminals = Set<String>()
+        var newTerminals = Set<String>()
+        var productionCount = 1
+
+        // Passo 5: Converte para a forma normal de Greibach
+        for production in g.productions {
+            var right = [String]()
+
+            for symbol in production.right {
+                if g.terminals.contains(symbol) {
+                    newTerminals.insert(symbol)
+                    right.append(symbol)
+                } else if g.nonTerminals.contains(symbol) {
+                    newNonTerminals.insert(symbol)
+                    right.append(symbol)
+                } else {
+                    let newNonTerminal = "N\(productionCount)"
+                    productionCount += 1
+                    newNonTerminals.insert(newNonTerminal)
+                    right.append(newNonTerminal)
+                    g.productions.append(Production(left: newNonTerminal, right: [symbol]))
+                }
+            }
+
+            if !right.isEmpty {
+                g.productions.append(Production(left: production.left, right: right))
+            }
+        }
+
+        g.nonTerminals = newNonTerminals
+        g.terminals = newTerminals
+    }
+}
+
+// Classe que representa um símbolo
+struct Symbol {
+    enum SymbolType {
+        case EOF
+        case NUMBER
+        case PLUS
+        case MINUS
+        case TIMES
+        case DIVIDE
+        case LPAREN
+        case RPAREN
+    }
+
+    let type: SymbolType
+    let value: String?
+
+    init(type: SymbolType, value: String? = nil) {
+        self.type = type
+        self.value = value
+    }
+}
+
+// Classe que representa uma gramática
+struct Grammar {
+    var nonTerminals: Set<String>
+    var terminals: Set<String>
+    let startSymbol: String
+    var productions: [Production]
+}
+
+// Classe que representa uma regra de produção
+struct Production {
+    let left: String
+    let right: [String]
+}
+
+// Execução do programa
+let parser = MyParser()
+parser.main()
