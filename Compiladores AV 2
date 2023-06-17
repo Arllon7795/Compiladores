@@ -1,0 +1,52 @@
+2ª Avaliação - Compiladores 
+
+Arllon De Fraga Dutra - 01358091 
+
+Ciência da Computação 
+
+7º Período - Noite 
+
+ 
+
+Questão 2: Simplicidade e clareza: A BNF é uma notação intuitiva e fácil de entender, tornando a descrição de gramáticas mais simples e legível 
+
+Suporte à recursividade: A BNF permite a definição de regras recursivas, facilitando a descrição de estruturas aninhadas nas linguagens de programação. 
+
+Facilidade de implementação: A BNF é facilmente traduzida em analisadores sintáticos, sendo amplamente utilizada em compiladores e suportada por diversas ferramentas. 
+
+Compatibilidade com ferramentas: A BNF é amplamente suportada por ferramentas e geradores automáticos de compiladores, simplificando o desenvolvimento de compiladores e interpretadores. 
+
+ 
+
+Questão 3: Para montar um analisador léxico-sintático ascendente, você precisará seguir alguns passos e utilizar certas regras e comandos. Aqui está uma descrição geral do processo: 
+
+1. Defina a gramática: Escreva a gramática livre de contexto da linguagem na notação BNF ou EBNF. Certifique-se de que a gramática seja livre de ambiguidades e que possa ser analisada usando a técnica LR(1). A gramática deve descrever as regras de produção da linguagem.   
+
+2. Gere a tabela de análise: Utilize um gerador de parsing LR(1), como o yacc/bison, para gerar a tabela de análise sintática. Essa tabela mapeia estados e símbolos da gramática para ações e deslocamentos.   
+
+3. Implemente o analisador léxico: Crie um analisador léxico que divide o código-fonte em tokens. Isso pode ser feito usando expressões regulares ou outras técnicas de reconhecimento de padrões.  
+
+4. Implemente o analisador sintático: Utilize a tabela de análise sintática gerada para implementar o analisador sintático ascendente. Aqui estão os principais passos: 
+   - Crie uma pilha vazia para armazenar os estados e símbolos. 
+
+   - Empilhe o estado inicial. 
+
+   - Leia o próximo token da entrada. 
+
+   - Repita até que uma ação de aceitação seja encontrada ou ocorra um erro: 
+
+     - Consulte a tabela de análise para determinar a ação a ser tomada com base no estado atual da pilha e no token atual. 
+
+     - Se a ação for um deslocamento, empilhe o token e o próximo estado. 
+
+     - Se a ação for uma redução, desempilhe os símbolos da regra de produção correspondente e faça uma transição para o estado resultante da redução. 
+
+     - Se a ação for um erro, trate o erro de sintaxe apropriado. 
+
+     - Se a ação for uma aceitação, a análise sintática foi concluída com sucesso.  
+
+
+5. Manipule erros: Durante a análise sintática, é importante tratar os erros de sintaxe de forma adequada. Isso pode envolver a recuperação de erros, exibição de mensagens de erro informativas e tomada de ações apropriadas para continuar a análise. 
+
+ 
+Questão 4: Um analisador semântico em um compilador tem como função verificar a corretude semântica do programa, incluindo a verificação de tipos, declarações, escopo, uso correto de variáveis e funções, detecção de erros semânticos e, em alguns casos, geração de código intermediário. É uma etapa crucial para garantir a validade do programa e produzir código confiável e eficiente. 
